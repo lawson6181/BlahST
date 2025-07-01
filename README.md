@@ -1,0 +1,193 @@
+# <img src="resources/hotkeys.png" height="64px" width="64px" alt="Sample hotkey Map for BlahST. Base image source: Wikimedia"> BlahST - Speech Input in Any Editable Text Field </img>
+**Blah** **S**peech-to-**T**ext lets you have a bla(h)st inputing text from speech on Linux, with keyboard shortcuts and whisper.cpp. Fire up your microphone and perform high-quality, multilingual speech recognition offline. Extended with local LLMs, it becomes a potent tool to converse with your Linux computer. No VRAM-consuming GUI, just a few configurable [hotkeys](./resources/hotkeys.png).
+
+**BlahST is probably the leanest Whisper-based speech-to-text input tool for Linux, sitting on top of whisper.cpp.** 
+
+- **Fast speech recognition with `wsi` via local whisper.cpp, or a whisper.cpp server for even faster [network transcription.](./API_TRANSCRIBE.md)**
+- **Can select speech input language and translate to English with the dedicated `wsiml` script**
+- **Option to use a [downloaded](https://huggingface.co/Mozilla/whisperfile/tree/main) portable [whisperfile](https://huggingface.co/Mozilla/whisperfile), (with a hotkey set for `wsi -w`)**
+- **The `blooper` utility does continuous "hands-free" speech input or dictation with automatic pasting loop, using xdotool or ydotool. Exits on longer silence and can be reactivated with a hotkey.**
+- **Interaction with local LLMs via [llama.cpp](https://github.com/ggerganov/llama.cpp) or a [llamafile](https://github.com/Mozilla-Ocho/llamafile), producing textual answers or translations that are both spoken back and available in the clipboard. This functionality is in the `wsiAI` and `blahstbot` scripts.** 
+- **EXPERIMENTAL: Added AI proofreader, triggered on any selected (editable) text by speech: "Computer, proofread ... or Computer be like Grammarly..". After a short while, the selected text should be automatically replaced by the LLM.**
+- **NEW: Low-latency speech chat with local LLMs (`blahstbot`). Natural, spoken conversation with an LLM with optional context loaded from any mouse-selected text. Please, see next video for a demo on an average Linux computer with a 12GB GPU (unmute audio)
+  ([Another demo with multilingual speech chat](./SPEECH-CHAT.md))**
+- **NEWER & EXPERMENTAL: Streaming speech-to-speech chat with `blahstream`, which also autopastes the text in the initially targeted window, as it arrives. Context compression via summarization.**
+
+https://github.com/user-attachments/assets/022adffc-3e13-48cd-be5d-5919f1d5cae7
+
+_The above video demonstrates using `blahstbot` for spoken interaction with Gemma3_12B, loaded in llama-server on localhost. There is no delay, the LLM actually answers quickly, making the conversation smooth. Under the hood, the script (triggered with a Gnome hotkey bound to `blahstbot -n`) passes the text from the recognized speech to llama-server, gets the response back, formats it and sends it to piper for TTS conversion, while also loading it in the clipboard. Note that the LLM fits completely in GPU VRAM, which helps the snappy performance._
+    
+Using low-resource, optimized command-line tools, spoken text input happens very fast. Here is a demonstration video (please, UNMUTE the audio) with some local LLM features (AI assistant, translator, scheduller, CLI guide in testing stage):
+
+https://github.com/user-attachments/assets/877c699d-cf8b-4dd2-bc0e-75dee9054cf2
+
+_In the above video, the audio starts with the system anouncing the screencasting (my GNOME extension ["Voluble"](https://github.com/QuantiusBenignus/voluble) speaks outloud all GNOME desktop notifications), followed by multiple turns of speech input/recognition. Demonstrated at the end is one of the upcomming "AI functions" which uses the text transcribed by BlahST (whisper.cpp), formats it into a LLM prompt and sends it to a local multilingual LLM (llama.cpp or llamafile) which returns the Chinese translation as text and also speaks it using a neural TTS. Orchestrating this from the command line with lean executables leaves the system surprisingly snappy (From the video you can see that the PC barely breaks any sweat - temperatures remain low-ish.)_
+
+
+https://github.com/user-attachments/assets/c3842318-14cb-4874-8651-7bc92abd187f
+
+_The above video (unmute please) demonstrates the use of blooper, modified from wsi to transcribe in a loop, until the user terminates speech input with a longer pause (~3sec as preset). With the use of xdotool (or ydotool for Wayland users), text is pasted automatically on any pause (or on hotkey interuption). For the video above, the speech is generated with a synthetic voice and collected by the microphone. This allows me to edit the text concurrently (multitaskers, don't try this at home:). At the end, the top-bar microphone icon should disappear, indicating program exit. It does not happen in the video because the screencast utility has a claim on the icon too._
+
+### Principle of Operation (_the best UI is no UI at all._)
+The idea with BlahST is to be the UI-free software equivalent of a tsunami; short and powerfull wave of CPU/GPU action and then it is gone out of the way, with only textual traces in the clipboard and relative desktop peace. Just use a pair of hotkeys to start and stop recording from the microphone and send the recorded speech to whisper.cpp [[server]](./API_TRANSCRIBE.md) which dumps transcribed text into the clipboard (unless you pass it by a local LLM before that). An universal approach that should work in most Linux desktop environments and distributions.
+
+The work is done by one of the scripts:
+- *wsi* for general speech input, 
+- *wsiml* for multilingual users,
+- *wsiAI* for users who want to also speak with a local large language model using llama.cpp or a llamafile.
+- *blooper* is an experimental tool for continouous dictation that will exit if a longer pause is detected.
+- *blahstbot* is a tool for spoken chat with a local (LAN) LLM, performing low-latency speech-to(-text-to)-speech conversation and making the LLM responce available to (auto)paste.
+  
+```mermaid
+flowchart LR
+    style net fill:#1af,stroke:#333,stroke-width:2px
+    E0==>ST 
+    E1 ==> ST[🎤Speech-to-Text Input Anywhere]
+    E1 ==> D[✨Experimental AI Tools <br> One-shot LLM Interaction]
+    E2 ==>|flags -l -t|Ml[🌐 Multilingual Speech to Text.
+Translation into English]
+    E3 ==> D1[⌨️ Continuous Dictation <br> Automatic Paste and Stop]
+	   D -->|"Assistant..."| D6([🤖 One-shot AI Assistant])
+     D -->|"Computer..."| D2([📝 AI Proofreader, via speech keyword])
+	   D --> |"Translator..."|D4([🌍 AI Translator])
+    E4 ==> D3[💬 Low-latency Speech Chat with a Local LLM 🤖]
+    E5 ==> D7[💬 Even lower-latency Streaming Speech Chat with a Local LLM 🤖]
+    subgraph net [<h3><b>BlahST<br></b></h3>]
+	   direction TB
+	   E0{{wsi}}
+     E1{{wsiAI}}
+     E2{{wsiml}}
+     E3{{blooper}}
+     E4{{blahstbot}}
+     E5{{blahstream}}
+    end
+```
+
+Speech recognition is performed by whisper.cpp which must be precompiled on your Linux system or available as a [server](https://github.com/ggerganov/whisper.cpp/tree/master/examples/server) instance on your LAN or localhost.
+Alternativelly, you can choose to simply download and use an actually portable executable (with an embedded whisper model) [whisperfile](https://huggingface.co/Mozilla/whisperfile/tree/main), now part of the [llamafile](https://github.com/Mozilla-Ocho/llamafile) repository. 
+
+When speech input is initiated with a hotkey, a microphone indicator appears in the top bar (at least in GNOME) and is shown for the duration of the recording (can be interupted with another hotkey).
+The disappearance of the microphone icon from the top bar indicates completion and the transcribed text can be pasted from the clipboard. On slower systems there may be a slight delay after the microphone icon disappears and before the text reaches the clipboard due to longer transcription time. On my computer, via the whisper.cpp server API, it is less than 150 ms (300 ms with local whisper.cpp) for an average paragraph of spoken text.
+
+For keyboard-only operation, with the standard `CTRL+V` for example, the standard clipboard will be used under X11 and Wayland (`wsi` or `wsiml`), while `wsi -p` (or `wsiml -p`) uses the PRIMARY sellection and text is pasted with the middle mouse button). For left-hand paste, speech recording can be relegated to hotkeys triggered with the right hand. ** For example I have setup the unused "+" (START RECORDING) and "Insert" (STOP RECORDING) keys on the numeric keypad. 
+
+<details>
+<summary>DATAFLOW DIAGRAMS</summary>
+   
+   #### wsiAI script (sample LLM interaction)
+   ![wsiAI dataflow](https://github.com/user-attachments/assets/12a4a576-5227-4592-82ad-b8618a1cfae7)
+
+   #### blooper (speech input in a loop)
+![blooper dataflow](https://github.com/user-attachments/assets/550d51fc-65f3-4c01-b355-9c6bd0ff2c49)
+</details>
+
+#### USAGE SUMMARY
+* On the press of a hotkey combo, the `wsi -p` script will record speech (stopped with a hotkey or by silence detection), use a local copy of whisper.cpp and send the transcribed text to the PRIMARY selection under, either X11 or Wayland.
+Then all one has to do is paste it with the middle mouse button anywhere they want. (For people holding the mouse with their right hand, speech recording hotkeys for the left hand would make sense.) 
+
+* If using `wsi` with no flags (the approaches can coexist, just set up different set of hotkeys), the transcribed text is sent to the clipboard (not PRIMARY selection) under, either X11 or Wayland.
+Then pasting happens with the `CTRL+V` (`CTRL+SHIFT+V` for GNOME terminal) or `SHIFT+INSert` keys as usual. (For most people, right-hand hotkeys would work well.)
+
+* If transcribing over the network with `wsi -n` (selected with a hotkey of its own), the script will attempt to send the recorded audio to a running, properly set whisper.cpp server (on the LAN or `localhost`).
+  It will then collect the textual response and format it for pasting with the `CTRL+V` (`CTRL+SHIFT+V` for GNOME terminal) or `SHIFT+INSert` keys (to paste with the middle mouse button use `wsi -n -p` instead).
+* If using a whisperfile instead of, or in addition to a compiled whisper.cpp, invoke with `wsi -w ...` and the script will use the preset actually portable executable with the embedded whisper model of choice.  
+* For multilingual users, in addition to the features of wsi, `wsiml` provides the ability to specify a language, e.g. `-l fr` and the option to translate to english with `-t`. The user can in principle assign multiple hotkeys to the various languages they transcribe or translate from. For example, two additional hotkeys can be set, one for transcribing and another for translating from French by assigning the commands `wsiml -l fr` and `wsiml -l fr -t` correspondingly.
+
+* **blooper:** Users can use the supplied script **blooper** for continuous, automatic speech-to-text input (no need to press CTRL+V or click middle mouse button.) This is demonstrated in the second video above. Please, note that the Clipboard is used by default, the text will be autopasted under the keyboard carret, but in principle the PRIMARY selection can be set up instead, a middle mouse button click will be simulated and the text pasted at the current position of the mouse pointer at the (somewhat arbitrary) time the text is available. Please, note that this relies on silence detection, which depends on your physical environment. In noisy environments, use the hot key to stop recording.
+* **blahstbot** When all one wants to do is have a spoken conversation with a local LLM, they can use **blahstbot** to perform UI-free speech chat with minimal latency. This can be done from a slower computer over LAN (since whisper server and llama-server are used, with a hotkey bound to `blahstbot -n`) and does not need to be a continuous conversation with contiguous text exchange. The user can perform other tasks between questions, use the supplied answers (available in the clipboard) and then come back later to continue within the context or change the subject (also available via **RESET CONTEXT** spoken command).
+* **blahstream** An arguably usable WIP, this tool does what `blahstbot` does, but in streaming fashion, as text is being generated by the LLM, it is also spoken and autopasted. `blahstream` manages its conversation context size via intermittent summarization and on X11, if the user moves away from the target window (where text is autopasted), the text is buffered until the user has the target window back in focus and then it is pasted, all while the LLM is streaming. 
+---
+
+### SYSTEM SETUP
+
+#### PREREQUISITES:
+- zsh command-line shell installation on a Linux system running any modern desktop environment.   
+- working [whisper.cpp installation](https://github.com/ggerganov/whisper.cpp) or a listening whisper.cpp server on your LAN/localhost (see network-transcription [section](./API_TRANSCRIBE.md)), or optionally a  [downloaded](https://huggingface.co/Mozilla/whisperfile/tree/main)  whisperfile.
+- The orchestrator tools **wsi**, **wsiAI** or **wsiml** (along with **blooper**, **blahstbot** and **blahstream**) from this repository **must be placed in your $HOME/.local/bin/ folder, in your $PATH**. The installation script `install-wsi` handles most of these, but it needs to be made executable and accessible itself.
+- recent versions of 'sox', 'xsel' (or 'wl-copy' on Wayland) command-line tools from your system's repositories.
+-  A working microphone
+-  To use the speech chat (blahstbot), a local `llama.cpp` installation or a listening `llama-server` (part of llama.cpp) is also needed.
+> *DISCLAIMER: The author neither takes credit nor assumes any responsibility for any outcome that may or may not result from interacting with the contents of this document. The proposed actions and automations (e.g. installation locations etc.) are merely suggestions and are based on the author's choice and opinion. As they may not fit the taste or the particular situation of everyone, please, adjust as needed.*
+
+#### INSTALLATION
+In a folder of your choice, clone the BlahST repository and then choose an installation method from below:
+
+```
+git clone https://github.com/QuantiusBenignus/BlahST.git
+cd ./BlahST
+chmod +x install-wsi
+
+# If using the installation script:
+./install-wsi
+```
+
+##### USING THE INSTALLATION SCRIPT
+- Run the script `install-wsi` from the folder of the cloned repository and follow the prompts. It will move the scripts and make them executable, create a link to the `whisper-cli` executable, set the environment, set a default whisper.cpp model, check for dependencies and request their installation if missing, etc. The script will also help you with the setup a whisperfile of your choice if you select that option.
+The installation script also handles setup for network transcription, but the IP and port for the whisper.cpp server must be set manually in **blahst.cfg**.
+- **User configuration for all tools has been consolidated in the single file `blahst.cfg`. You will edit the USER CONFIGURATION BLOCK in that file to setup your environment.** Local overrides for some variables may be set in the respective scripts.
+- Run the scripts (e.g `wsi` or `wsiAI`) directly from the command line first to verify proper operation. To be invoked later with [hotkeys](https://github.com/QuantiusBenignus/BlahST/#gui-setup-of-hotkeys) for speed and convenience.
+
+##### MANUAL INSTALLATION
+
+*(Assuming whisper.cpp is installed and the `whisper-cli` and/or `whisper-server` executables compiled in the cloned whisper.cpp repo. See Prerequisites section)*
+* Place the scripts **wsi** and/or **wsiAI**, **wsiml**, **blooper**, **blahstbot**, **blahstream** and **blahst.cfg** in $HOME/.local/bin/
+* Make them executable:
+  ```
+  cp wsi wsiAI wsiml blooper blahstbot blahstream blahst.cfg $HOME/.local/bin/
+  cd $HOME/.local/bin; chmod +x wsi wsiAI wsiml blooper blahstbot blahstream
+  ```
+* Make sure $HOME/.local/bin is part of your $PATH ( `echo $PATH` ) and if not, add it (e.g. by placing `export PATH="$HOME/.local/bin:$%PATH"` in your .profile or .zprofile file) 
+* Configure the user environment by editing **blahst.cfg** and the tool-specific USER_CONFIG_BLOCK in each file. Please, see **CONFIGURATION** below.  
+* Run the tools (e.g. `wsi` or `wsi -n`) once from the command line to let the scripts check for required dependencies:
+  ```
+  # If .local/bin is still not in the $PATH:
+  ./wsi -n
+  # If .local/bin is already in the $PATH:
+  wsi -n
+  #Can also run with --help to get idea of the options for the specific tool:
+  wsi --help
+  wsiAI --help
+  ```
+* If using local whisper.cpp, create a symbolic link (the code expects 'transcribe' in your $PATH) to the compiled "whisper-cli" executable in the whisper.cpp directory.
+  For example, create it in your `$HOME/.local/bin/` (part of your $PATH) with 
+```
+ln -s /full/path/to/whisper.cpp/whisper-cli $HOME/.local/bin/transcribe
+#also if using the whisper-server:
+ln -s /full/path/to/whisper.cpp/whisper-server $HOME/.local/bin/whserver
+```
+If `transcribe` is not in your $PATH, either edit the call to it in **wsi** to include the absolute path, or add its location to the $PATH variable. Otherwise the script will fail.
+If you prefer not to compile whisper.cpp, or in addition to that, download and set the executable flag of a suitable whisperfile, for example:
+```
+cd $HOME/.local/bin
+wget https://huggingface.co/Mozilla/whisperfile/resolve/main/whisper-tiny.en.llamafile
+chmod +x whisper-tiny.en.llamafile
+```
+ 
+#### CONFIGURATION
+
+**IMPORTANT:** The configuration of BlahST has beeen migrated into a single file **blahst.cfg** that is now shared by all tools. Near the beginning of this file, there is a section, named **"USER CONFIGURATION BLOCK"**, where all the user-configurable variables have been collected, grouped in sections by tool. (Inside each script, there may also be a CONFIG BLOCK for local overrides, where needed.)
+Most settings can be left as is but the important ones are the location of the (whisper, LLM, TTS) model files that you would like to use (or the IP and port number for the whisper.cpp or llama.cpp servers). 
+If using a whisperfile, please, set the WHISPERFILE variable to the filename of the previously downloaded executable whisperfile, i.e. `WHISPERFILE=whisper-tiny.en.llamafile` (must be in the $PATH). 
+
+#### GUI SETUP OF HOTKEYS
+To start and stop speech input, for both manual and automatic installation
+<details>
+<summary> CASE 1: GNOME</summary>
+
+##### Hotkey to start recording of speech
+* Open your GNOME system settings and find "Keyboard".
+* Under "Keyboard shortcuts", "View and customize shortcuts"
+* In the new window, scroll down to "Custom Shortcuts" and press it.
+* Add a new shortcut (e.g. press `+`) and give it a name: "Start Recording Speech"
+* In the "Command" field type `/home/yourusername/.local/bin/wsi -p` for using the middle mouse button or change it to `.../wsi` for using the clipboard.
+* (For users of the multi-lingual models, replace `wsi` above with `wsiml` and if using a whisperfile, add the `-w` flag, i.e. `/home/yourusername/.local/bin/wsi -w` ). Finally, to sample the LLM functions, replace `wsi` with `wsiAI`.
+* Then press "Set Shortcut" and select a (unused) key combination. For example a key combo like **CTRL+ALT+a** or a single unused key like **KP+** (keypad +).
+* Click Add and you are done. 
+
+The orchestrator script has a silence detection filter in the call to sox (rec) and would stop recording (in the best case) on 2 seconds of silence.
+In addition, if one does not want to wait or has issues with the silence detection threshold:
+
+##### Manual speech recording interuption (strongly recommended)
+For those who want to be able to interupt the recording manually with a key combination, in the spirit of great hacks, we are going to use the system built-in features:
+* Open your GNOME system settings and again, find "Keyboard".
+* Under "Keyboard shortcuts", "View and customize sh
