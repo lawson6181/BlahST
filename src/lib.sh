@@ -2,3 +2,4 @@
 set -eu
 
 echo "BlahST"
+# guard against empty input
