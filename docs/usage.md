@@ -16,3 +16,4 @@ Notes and usage details for BlahST.
 - link the usage section
 - clarify the setup steps
 - link the usage section
+- link the usage section
