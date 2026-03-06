@@ -15,3 +15,4 @@ Notes and usage details for BlahST.
 - clarify the setup steps
 - link the usage section
 - clarify the setup steps
+- link the usage section
